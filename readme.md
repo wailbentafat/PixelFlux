@@ -38,9 +38,5 @@ let outputTexture = filter.apply(inputTexture)
 
 ```
 
----
 
-This keeps it **short, honest, and beginner-friendly**, while still explaining what the project does.  
-
-I can also make an **even simpler version**, one paragraph only, if you want it **super beginner-level for GitHub**. Do you want me to do that?
 ```
