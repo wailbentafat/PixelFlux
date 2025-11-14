@@ -1,4 +1,3 @@
-````markdown
 # PixelFlux
 
 PixelFlux is a Swift framework for GPU-based image filters using Metal. It comes with a demo app to test filters on iOS.
@@ -36,7 +35,6 @@ let outputTexture = filter.apply(inputTexture)
 * Learn how to structure a Swift framework
 * Experiment with basic image processing
 
-```
 
 
 ```
