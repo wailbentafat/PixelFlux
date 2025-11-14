@@ -1,19 +1,22 @@
-//
-//  ViewController.swift
-//  PixelFluxDemo
-//
-//  Created by omar on 14/11/2025.
-//
-
 import UIKit
+import PixelFlux
 
 class ViewController: UIViewController {
+    @IBOutlet weak var imageView: UIImageView!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+
+        guard let original = UIImage(named: "example") else {
+            print("Image not found")
+            return
+        }
+
+        do {
+            let result = try BrightnessFilter(brightness: 0.3).apply(to: original)
+            imageView.image = result
+        } catch {
+            print("Metal Error:", error)
+        }
     }
-
-
 }
-
