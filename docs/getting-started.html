@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started - PixelFlux</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>PixelFlux</h1>
+    <p>GPU-Accelerated Image Processing Framework for iOS</p>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html" class="active">Getting Started</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h2>Getting Started with PixelFlux</h2>
+      <p>This guide walks you through installing PixelFlux and building your first GPU-accelerated image filtering app.</p>
+
+      <h3>Installation</h3>
+
+      <h4>Using Swift Package Manager</h4>
+      <p>PixelFlux is distributed as a Swift Package. Add it to your project in Xcode:</p>
+      <ol>
+        <li>Open your project in Xcode</li>
+        <li>Navigate to File → Add Packages</li>
+        <li>Enter the repository URL: <code>https://github.com/wailbentafat/PixelFlux.git</code></li>
+        <li>Select a version (e.g., main branch for latest development)</li>
+        <li>Choose your target and click "Add Package"</li>
+      </ol>
+
+      <h4>CocoaPods Integration</h4>
+      <p>PixelFlux is also available via CocoaPods. Add to your Podfile:</p>
+      <div class="code-example">
+        <h5>Podfile</h5>
+        <pre><code>target 'YourApp' do
+  pod 'PixelFlux'
+end</code></pre>
+      </div>
+      <p>Then run <code>pod install</code>.</p>
+
+      <h3>Requirements</h3>
+      <ul>
+        <li><strong>Minimum iOS Version:</strong> iOS 16.0</li>
+        <li><strong>Swift Version:</strong> 5.9 or later</li>
+        <li><strong>Metal Support:</strong> A device or simulator with Metal GPU support</li>
+      </ul>
+
+      <h3>Your First Filter</h3>
+
+      <h4>Step 1: Import PixelFlux</h4>
+      <div class="code-example">
+        <h5>Swift</h5>
+        <pre><code>import PixelFlux
+import UIKit</code></pre>
+      </div>
+
+      <h4>Step 2: Create a Filter</h4>
+      <p>Initialize a brightness filter with a brightness adjustment value between -1.0 and 1.0:</p>
+      <div class="code-example">
+        <h5>Creating a Brightness Filter</h5>
+        <pre><code>do {
+  let filter = try BrightnessFilter(brightness: 0.3)
+  // Filter created successfully
+} catch {
+  print("Error creating filter:", error.localizedDescription)
+}</code></pre>
+      </div>
+
+      <h4>Step 3: Apply the Filter</h4>
+      <p>Apply the filter to a UIImage. The operation runs on the GPU and returns a new image:</p>
+      <div class="code-example">
+        <h5>Applying a Filter to an Image</h5>
+        <pre><code>import PixelFlux
+import UIKit
+
+class ImageViewController: UIViewController {
+  @IBOutlet weak var imageView: UIImageView!
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    // Load your image
+    guard let originalImage = UIImage(named: "myPhoto") else {
+      print("Image not found")
+      return
+    }
+
+    // Apply brightness filter
+    do {
+      let brightFilter = try BrightnessFilter(brightness: 0.3)
+      let brightResult = try brightFilter.apply(to: originalImage)
+      imageView.image = brightResult
+    } catch {
+      print("Filter error:", error.localizedDescription)
+    }
+  }
+}</code></pre>
+      </div>
+
+      <h3>Using the Convenience API</h3>
+
+      <p>For simple operations, use the <code>PixelFlux.shared</code> singleton API:</p>
+      <div class="code-example">
+        <h5>Convenience API Usage</h5>
+        <pre><code>import PixelFlux
+
+let image = UIImage(named: "example")!
+
+// Apply brightness using shared API
+do {
+  let brightened = try PixelFlux.shared.applyBrightness(to: image, brightness: 0.5)
+  imageView.image = brightened
+
+  // Or apply passthrough (identity) filter
+  let passthrough = try PixelFlux.shared.applyPassthrough(to: image)
+  anotherImageView.image = passthrough
+} catch {
+  print("Error:", error.localizedDescription)
+}</code></pre>
+      </div>
+
+      <h3>Error Handling</h3>
+
+      <p>PixelFlux defines a set of errors that may occur during filter creation or application:</p>
+      <div class="api-section">
+        <h4>PixelFluxError Cases</h4>
+        <ul>
+          <li><code>noCGImage</code> - The input UIImage lacks a CGImage (may be empty or corrupted)</li>
+          <li><code>metalLibraryNotFound</code> - Metal shader library could not be loaded</li>
+          <li><code>functionNotFound</code> - The requested Metal compute function not found in library</li>
+          <li><code>commandBufferFailed</code> - Failed to create a Metal command buffer</li>
+          <li><code>bufferCreationFailed</code> - Failed to allocate GPU buffer for shader parameters</li>
+        </ul>
+      </div>
+
+      <h3>Complete Example App</h3>
+
+      <p>Here's a complete example of a simple image filter app:</p>
+      <div class="code-example">
+        <h5>Complete ViewController</h5>
+        <pre><code>import UIKit
+import PixelFlux
+
+class FilterDemoViewController: UIViewController {
+  @IBOutlet weak var imageView: UIImageView!
+  @IBOutlet weak var brightnessSlider: UISlider!
+  @IBOutlet weak var resultLabel: UILabel!
+
+  var originalImage: UIImage?
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    // Load original image
+    originalImage = UIImage(named: "demo")
+
+    // Set up slider
+    brightnessSlider.minimumValue = -1.0
+    brightnessSlider.maximumValue = 1.0
+    brightnessSlider.value = 0.0
+    brightnessSlider.addTarget(self, action: #selector(brightnessChanged), for: .valueChanged)
+
+    // Display original
+    imageView.image = originalImage
+  }
+
+  @objc func brightnessChanged() {
+    guard let original = originalImage else { return }
+
+    let brightness = brightnessSlider.value
+    resultLabel.text = String(format: "Brightness: %.2f", brightness)
+
+    do {
+      let filter = try BrightnessFilter(brightness: brightness)
+      let result = try filter.apply(to: original)
+      imageView.image = result
+    } catch {
+      resultLabel.text = "Error: \(error.localizedDescription)"
+    }
+  }
+}</code></pre>
+      </div>
+
+      <h3>Performance Tips</h3>
+      <ul>
+        <li><strong>Batch Operations:</strong> If applying multiple filters, consider creating a pipeline to avoid repeated texture uploads</li>
+        <li><strong>Async Processing:</strong> Dispatch filter operations to a background queue to keep the UI responsive</li>
+        <li><strong>Image Size:</strong> Larger images take longer to process. Consider downsampling if processing very large images</li>
+        <li><strong>Reuse Filters:</strong> Create filter instances once and reuse them to avoid repeated initialization overhead</li>
+      </ul>
+
+      <h3>Troubleshooting</h3>
+
+      <h4>Issue: "Image asset not found"</h4>
+      <p>Make sure your images are added to your app's Assets.xcassets catalog and are set to the correct target membership.</p>
+
+      <h4>Issue: "Metal library not found"</h4>
+      <p>Ensure the PixelFlux package is properly linked to your target. Check your project's Build Phases → Link Binary With Libraries.</p>
+
+      <h4>Issue: Image dimensions changed</h4>
+      <p>PixelFlux preserves the image dimensions. If dimensions change, check that you're using the correct scale factor when creating test images.</p>
+
+      <h3>Next Steps</h3>
+      <ul>
+        <li>Explore the <a href="api-reference.html">API Reference</a> for detailed documentation</li>
+        <li>Read the <a href="architecture.html">Architecture</a> guide to understand how PixelFlux works internally</li>
+        <li>Build custom filters by implementing the Filter protocol</li>
+        <li>Check out the <a href="https://github.com/wailbentafat/PixelFlux" target="_blank">GitHub repository</a> for examples</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 PixelFlux. Built with Swift, Metal, and ❤️</p>
+    <p><a href="https://github.com/wailbentafat/PixelFlux" target="_blank">View on GitHub</a></p>
+  </footer>
+</body>
+</html>

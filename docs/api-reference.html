@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Reference - PixelFlux</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>PixelFlux</h1>
+    <p>GPU-Accelerated Image Processing Framework for iOS</p>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="api-reference.html" class="active">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h2>API Reference</h2>
+      <p>Complete documentation of all public classes, protocols, and functions in the PixelFlux framework.</p>
+
+      <h3>Core Protocol</h3>
+
+      <div class="api-section">
+        <h4>Filter</h4>
+        <p>The foundational protocol that all filters implement. Defines the contract for GPU-accelerated image processing.</p>
+        <pre><code>public protocol Filter {
+  func process(_ input: MTLTexture) throws -> MTLTexture
+}</code></pre>
+        <p><strong>Description:</strong> Any type conforming to <code>Filter</code> can process Metal textures on the GPU. This is the base for all custom filters.</p>
+        <h5>Methods</h5>
+        <div class="api-section">
+          <div class="parameter">
+            <span class="parameter-name">process(_:)</span>
+            <span class="parameter-type">MTLTexture → MTLTexture</span>
+            <span class="parameter-desc">Processes an input GPU texture and returns the filtered output texture. Throws PixelFluxError if processing fails.</span>
+          </div>
+        </div>
+      </div>
+
+      <h3>Built-in Filters</h3>
+
+      <div class="api-section">
+        <h4>BrightnessFilter</h4>
+        <p>Adjusts image brightness by adding a constant offset to pixel color values.</p>
+        <pre><code>public final class BrightnessFilter: Filter {
+  public init(brightness: Float) throws
+  public var brightness: Float
+  public func apply(to inputImage: UIImage) throws -> UIImage?
+  public func process(_ input: MTLTexture) throws -> MTLTexture
+}</code></pre>
+
+        <h5>Initialization</h5>
+        <div class="api-section">
+          <h6>init(brightness:)</h6>
+          <div class="parameter">
+            <span class="parameter-name">brightness</span>
+            <span class="parameter-type">Float</span>
+            <span class="parameter-desc">Brightness adjustment value. Range: -1.0 (darker) to 1.0 (brighter). Default: 0.0 (no change). Can throw PixelFluxError.bufferCreationFailed.</span>
+          </div>
+        </div>
+
+        <h5>Properties</h5>
+        <div class="api-section">
+          <div class="parameter">
+            <span class="parameter-name">brightness</span>
+            <span class="parameter-type">Float</span>
+            <span class="parameter-desc">The brightness adjustment value used by this filter instance (read-only after initialization).</span>
+          </div>
+        </div>
+
+        <h5>Methods</h5>
+        <div class="api-section">
+          <h6>apply(to:)</h6>
+          <p>Convenience method for applying the filter to a UIImage.</p>
+          <div class="parameter">
+            <span class="parameter-name">inputImage</span>
+            <span class="parameter-type">UIImage</span>
+            <span class="parameter-desc">The source image to filter.</span>
+          </div>
+          <p><strong>Returns:</strong> A new UIImage with brightness applied, or nil on error.</p>
+          <p><strong>Throws:</strong> PixelFluxError if texture creation or processing fails.</p>
+        </div>
+
+        <h5>Example</h5>
+        <div class="code-example">
+          <pre><code>let originalImage = UIImage(named: "photo")!
+
+do {
+  let brightFilter = try BrightnessFilter(brightness: 0.3)
+  let brightResult = try brightFilter.apply(to: originalImage)
+  imageView.image = brightResult
+} catch {
+  print("Brightness filter error:", error)
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="api-section">
+        <h4>PassthroughFilter</h4>
+        <p>Identity filter that returns an unmodified image. Useful for testing and verifying the GPU pipeline.</p>
+        <pre><code>public final class PassthroughFilter: Filter {
+  public init() throws
+  public func apply(to inputImage: UIImage) throws -> UIImage?
+  public func process(_ input: MTLTexture) throws -> MTLTexture
+}</code></pre>
+
+        <h5>Initialization</h5>
+        <div class="api-section">
+          <h6>init()</h6>
+          <p>Initializes the passthrough filter. Can throw PixelFluxError.commandBufferFailed if GPU pipeline setup fails.</p>
+        </div>
+
+        <h5>Methods</h5>
+        <div class="api-section">
+          <h6>apply(to:)</h6>
+          <p>Applies the passthrough filter to a UIImage and returns it unmodified (after GPU processing).</p>
+          <div class="parameter">
+            <span class="parameter-name">inputImage</span>
+            <span class="parameter-type">UIImage</span>
+            <span class="parameter-desc">The source image.</span>
+          </div>
+          <p><strong>Returns:</strong> The input image after GPU processing, or nil on error.</p>
+        </div>
+
+        <h5>Example</h5>
+        <div class="code-example">
+          <pre><code>let filter = try PassthroughFilter()
+let result = try filter.apply(to: image)
+imageView.image = result</code></pre>
+        </div>
+      </div>
+
+      <h3>Public API</h3>
+
+      <div class="api-section">
+        <h4>PixelFlux</h4>
+        <p>Main singleton providing convenient access to PixelFlux filters.</p>
+        <pre><code>public final class PixelFlux {
+  public static let shared: PixelFlux
+  public func applyBrightness(to inputImage: UIImage, brightness: Float) throws -> UIImage?
+  public func applyPassthrough(to inputImage: UIImage) throws -> UIImage?
+}</code></pre>
+
+        <h5>Properties</h5>
+        <div class="api-section">
+          <h6>shared</h6>
+          <p>A singleton instance of PixelFlux. Use this for convenient filter application.</p>
+        </div>
+
+        <h5>Methods</h5>
+        <div class="api-section">
+          <h6>applyBrightness(to:brightness:)</h6>
+          <p>Apply brightness adjustment to an image using a single call.</p>
+          <div class="parameter">
+            <span class="parameter-name">inputImage</span>
+            <span class="parameter-type">UIImage</span>
+            <span class="parameter-desc">The source image.</span>
+          </div>
+          <div class="parameter">
+            <span class="parameter-name">brightness</span>
+            <span class="parameter-type">Float</span>
+            <span class="parameter-desc">Brightness adjustment value (-1.0 to 1.0).</span>
+          </div>
+          <p><strong>Returns:</strong> A new UIImage with brightness applied, or nil on error.</p>
+          <p><strong>Throws:</strong> PixelFluxError if filter creation or application fails.</p>
+        </div>
+
+        <div class="api-section">
+          <h6>applyPassthrough(to:)</h6>
+          <p>Apply passthrough (identity) filter to verify GPU pipeline.</p>
+          <div class="parameter">
+            <span class="parameter-name">inputImage</span>
+            <span class="parameter-type">UIImage</span>
+            <span class="parameter-desc">The source image.</span>
+          </div>
+          <p><strong>Returns:</strong> The input image after GPU processing, or nil on error.</p>
+          <p><strong>Throws:</strong> PixelFluxError if filter application fails.</p>
+        </div>
+
+        <h5>Example</h5>
+        <div class="code-example">
+          <pre><code>let image = UIImage(named: "photo")!
+
+// Using shared API
+do {
+  let brightened = try PixelFlux.shared.applyBrightness(to: image, brightness: 0.2)
+  imageView.image = brightened
+} catch {
+  print("Error:", error.localizedDescription)
+}</code></pre>
+        </div>
+      </div>
+
+      <h3>Error Handling</h3>
+
+      <div class="api-section">
+        <h4>PixelFluxError</h4>
+        <p>Enumeration of errors that may be thrown by PixelFlux operations.</p>
+        <pre><code>public enum PixelFluxError: LocalizedError {
+  case noCGImage
+  case metalLibraryNotFound
+  case functionNotFound
+  case commandBufferFailed
+  case bufferCreationFailed
+}</code></pre>
+
+        <h5>Cases</h5>
+        <table>
+          <tr>
+            <th>Error Case</th>
+            <th>Description</th>
+            <th>Common Causes</th>
+          </tr>
+          <tr>
+            <td><code>noCGImage</code></td>
+            <td>Input UIImage has no CGImage backing</td>
+            <td>Empty image, corrupted image data, or unsupported format</td>
+          </tr>
+          <tr>
+            <td><code>metalLibraryNotFound</code></td>
+            <td>Metal shader library (.metallib) not found</td>
+            <td>Framework linking issue, missing build phase</td>
+          </tr>
+          <tr>
+            <td><code>functionNotFound</code></td>
+            <td>Requested Metal compute function not in library</td>
+            <td>Incorrect function name, compilation error in shader</td>
+          </tr>
+          <tr>
+            <td><code>commandBufferFailed</code></td>
+            <td>Failed to create Metal command buffer</td>
+            <td>GPU context initialization failed, Metal unavailable</td>
+          </tr>
+          <tr>
+            <td><code>bufferCreationFailed</code></td>
+            <td>Failed to allocate GPU buffer for parameters</td>
+            <td>Out of VRAM, invalid buffer size</td>
+          </tr>
+        </table>
+
+        <h5>Error Handling Example</h5>
+        <div class="code-example">
+          <pre><code>do {
+  let filter = try BrightnessFilter(brightness: 0.5)
+  let result = try filter.apply(to: image)
+  imageView.image = result
+} catch let error as PixelFluxError {
+  switch error {
+  case .noCGImage:
+    print("Image is invalid or corrupted")
+  case .metalLibraryNotFound:
+    print("Metal shaders not properly linked")
+  case .functionNotFound:
+    print("Filter function not found in shader library")
+  case .commandBufferFailed:
+    print("GPU context unavailable")
+  case .bufferCreationFailed:
+    print("Failed to allocate GPU memory")
+  }
+} catch {
+  print("Unknown error:", error)
+}</code></pre>
+        </div>
+      </div>
+
+      <h3>Type Aliases</h3>
+
+      <div class="api-section">
+        <h4>Metal Types</h4>
+        <p>PixelFlux uses the following Metal types which are re-exported from the Metal framework:</p>
+        <ul>
+          <li><code>MTLTexture</code> - GPU-resident image data</li>
+          <li><code>MTLDevice</code> - Represents the GPU</li>
+          <li><code>MTLCommandQueue</code> - Queue for GPU commands</li>
+          <li><code>MTLCommandBuffer</code> - Container for GPU command encoding</li>
+          <li><code>MTLComputeCommandEncoder</code> - Encodes compute shader commands</li>
+          <li><code>MTLBuffer</code> - GPU-resident memory buffer</li>
+        </ul>
+      </div>
+
+      <h3>Threading Model</h3>
+      <p>All PixelFlux operations are synchronous and performed on the calling thread. The underlying GPU operations may be asynchronous, but <code>apply()</code> methods wait for GPU completion before returning.</p>
+      <ul>
+        <li><strong>Thread-Safe:</strong> PixelFlux filter instances are thread-safe and can be used from multiple threads concurrently</li>
+        <li><strong>GPU Synchronization:</strong> Filter application blocks until GPU processing is complete</li>
+        <li><strong>Background Processing:</strong> For UI responsiveness, dispatch filter operations to a background queue</li>
+      </ul>
+
+      <div class="code-example">
+        <h5>Background Processing Example</h5>
+        <pre><code>DispatchQueue.global(qos: .userInitiated).async {
+  do {
+    let filter = try BrightnessFilter(brightness: 0.3)
+    let result = try filter.apply(to: originalImage)
+
+    DispatchQueue.main.async {
+      self.imageView.image = result
+    }
+  } catch {
+    print("Error:", error)
+  }
+}</code></pre>
+      </div>
+
+      <h3>Legacy API</h3>
+      <p>In addition to the convenience <code>apply(to:)</code> methods, filters also implement the <code>Filter</code> protocol directly:</p>
+      <div class="code-example">
+        <h5>Direct Protocol Usage</h5>
+        <pre><code>let filter = try BrightnessFilter(brightness: 0.5)
+
+// Convert UIImage to Metal texture
+let texture = try makeTexture(from: image)
+
+// Process at the Metal level
+let outputTexture = try filter.process(texture)
+
+// Convert back to UIImage
+let result = textureToUIImage(outputTexture)</code></pre>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 PixelFlux. Built with Swift, Metal, and ❤️</p>
+    <p><a href="https://github.com/wailbentafat/PixelFlux" target="_blank">View on GitHub</a></p>
+  </footer>
+</body>
+</html>

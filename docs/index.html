@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixelFlux - GPU-Powered Image Processing for iOS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>PixelFlux</h1>
+    <p>GPU-Accelerated Image Processing Framework for iOS</p>
+  </header>
+
+  <nav>
+    <a href="index.html" class="active">Home</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h2>Welcome to PixelFlux</h2>
+      <p>PixelFlux is a modern Swift framework for GPU-accelerated image processing on iOS. Leveraging Apple's Metal framework, PixelFlux provides blazing-fast image filtering and effects with minimal CPU overhead.</p>
+
+      <h3>What is PixelFlux?</h3>
+      <p>PixelFlux is a lightweight image processing framework that harnesses the power of GPU compute shaders to perform image transformations efficiently. Instead of processing pixels on the CPU, PixelFlux offloads the heavy lifting to the GPU, resulting in:</p>
+      <ul>
+        <li><strong>Exceptional Performance:</strong> GPU compute shaders process thousands of pixels in parallel</li>
+        <li><strong>Low Power Consumption:</strong> Specialized GPU hardware is more efficient than CPU for image operations</li>
+        <li><strong>Beautiful API:</strong> Simple, Swift-native interface for applying filters</li>
+        <li><strong>Extensible Architecture:</strong> Build custom filters by implementing the Filter protocol</li>
+      </ul>
+
+      <h3>Key Features</h3>
+      <div class="feature-list">
+        <div class="feature-item">
+          <h4>🚀 GPU-Accelerated</h4>
+          <p>Uses Metal compute shaders for parallel pixel processing, delivering exceptional performance.</p>
+        </div>
+        <div class="feature-item">
+          <h4>⚙️ Easy to Use</h4>
+          <p>Simple, intuitive Swift API makes it easy to apply filters to any UIImage.</p>
+        </div>
+        <div class="feature-item">
+          <h4>🔧 Extensible</h4>
+          <p>Implement the Filter protocol to create custom image processing pipelines.</p>
+        </div>
+        <div class="feature-item">
+          <h4>📦 Well-Tested</h4>
+          <p>Comprehensive unit tests ensure reliability across different iOS devices and simulators.</p>
+        </div>
+        <div class="feature-item">
+          <h4>🛡️ Type-Safe</h4>
+          <p>Leverages Swift's type system for compile-time safety and runtime error handling.</p>
+        </div>
+        <div class="feature-item">
+          <h4>🔌 SwiftPM Ready</h4>
+          <p>Distributed as a Swift Package for easy integration into your projects.</p>
+        </div>
+      </div>
+
+      <h3>Quick Start</h3>
+      <p>Get up and running with PixelFlux in just a few lines of code:</p>
+      <div class="code-example">
+        <h5>Swift Example</h5>
+        <pre><code>import PixelFlux
+import UIKit
+
+// Create an image
+let image = UIImage(named: "example")!
+
+// Apply a brightness filter
+let filter = try BrightnessFilter(brightness: 0.3)
+let result = try filter.apply(to: image)
+
+// Use the result
+imageView.image = result</code></pre>
+      </div>
+
+      <h3>Available Filters</h3>
+      <p>PixelFlux comes with built-in filters for common image processing tasks:</p>
+      <ul>
+        <li><strong>BrightnessFilter:</strong> Adjust image brightness with smooth, real-time control</li>
+        <li><strong>PassthroughFilter:</strong> Verify GPU pipeline functionality with identity transformation</li>
+      </ul>
+
+      <h3>Build Custom Filters</h3>
+      <p>The framework is designed to be extensible. Implement the <code>Filter</code> protocol to create your own GPU-accelerated filters:</p>
+      <div class="code-example">
+        <h5>Custom Filter Example</h5>
+        <pre><code>public protocol Filter {
+  func process(_ input: MTLTexture) throws -> MTLTexture
+}
+
+// Implement your custom filter
+public class CustomFilter: Filter {
+  func process(_ input: MTLTexture) throws -> MTLTexture {
+    // Your Metal compute implementation here
+    let output = makeEmptyTexture(matching: input)
+    // Encode GPU commands...
+    return output
+  }
+}</code></pre>
+      </div>
+
+      <h3>Requirements</h3>
+      <ul>
+        <li>iOS 16.0 or later</li>
+        <li>Swift 5.9 or later</li>
+        <li>Xcode 14.0 or later</li>
+        <li>A device or simulator with Metal support</li>
+      </ul>
+
+      <h3>Next Steps</h3>
+      <p>Ready to get started? Check out the <a href="getting-started.html">Getting Started</a> guide for installation instructions and detailed examples. For API details, see the <a href="api-reference.html">API Reference</a>. To understand how PixelFlux works internally, read the <a href="architecture.html">Architecture</a> documentation.</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 PixelFlux. Built with Swift, Metal, and ❤️</p>
+    <p><a href="https://github.com/wailbentafat/PixelFlux" target="_blank">View on GitHub</a></p>
+  </footer>
+</body>
+</html>

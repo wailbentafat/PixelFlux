@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture - PixelFlux</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>PixelFlux</h1>
+    <p>GPU-Accelerated Image Processing Framework for iOS</p>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Getting Started</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html" class="active">Architecture</a>
+  </nav>
+
+  <main>
+    <div class="container">
+      <h2>Architecture & Implementation</h2>
+      <p>This document explains the internal architecture of PixelFlux, how Metal GPU compute shaders work, and the design decisions behind the framework.</p>
+
+      <h3>Overview</h3>
+      <p>PixelFlux is built on Apple's Metal framework, which provides low-level access to the GPU. The framework is organized into several layers:</p>
+      <ul>
+        <li><strong>User-Facing API:</strong> Simple Swift interfaces (BrightnessFilter, PassthroughFilter)</li>
+        <li><strong>Core Engines:</strong> Texture handling, GPU pipeline management, error handling</li>
+        <li><strong>GPU Layer:</strong> Metal compute shaders that perform actual image processing</li>
+      </ul>
+
+      <h3>Processing Pipeline</h3>
+      <p>When you apply a filter to an image, PixelFlux performs these steps:</p>
+      <ol>
+        <li><strong>Image to Texture:</strong> Convert UIImage to Metal GPU texture</li>
+        <li><strong>Parameter Setup:</strong> Create GPU buffers for filter parameters (e.g., brightness value)</li>
+        <li><strong>GPU Execution:</strong> Dispatch compute shader to process texture in parallel</li>
+        <li><strong>Result Collection:</strong> Copy processed data from GPU back to CPU memory</li>
+        <li><strong>Texture to Image:</strong> Convert Metal texture back to UIImage</li>
+      </ol>
+
+      <h3>Key Components</h3>
+
+      <h4>1. Texture Management (TextureUtilities.swift)</h4>
+      <p>Handles conversion between UIImage and Metal textures.</p>
+      <div class="code-example">
+        <h5>Image → Texture Conversion</h5>
+        <pre><code>// UIImage is loaded via Core Image
+let ciImage = CIImage(cgImage: cgImage)
+
+// MTKTextureLoader efficiently uploads to GPU
+let texture = try textureLoader.newTexture(cgImage: cgImage, options: [...])
+</code></pre>
+      </div>
+      <p><strong>Why Metal textures?</strong> Metal textures reside in GPU memory and can be directly processed by compute shaders without CPU-GPU transfer overhead.</p>
+
+      <h4>2. GPU Context (GPUContext.swift)</h4>
+      <p>Singleton that manages the Metal device and command queue.</p>
+      <div class="code-example">
+        <h5>GPU Context Setup</h5>
+        <pre><code>static let shared = try GPUContext()
+
+// Creates:
+let device = MTLCreateSystemDefaultDevice()  // The GPU
+let queue = device.makeCommandQueue()         // Command submission queue
+</code></pre>
+      </div>
+      <p>All GPU operations go through a single command queue to ensure proper synchronization and command ordering.</p>
+
+      <h4>3. Compute Pipeline (ComputePipeline.swift)</h4>
+      <p>Encapsulates Metal shader compilation and command encoding.</p>
+      <div class="code-example">
+        <h5>Pipeline Initialization</h5>
+        <pre><code>public init(functionName: String) throws {
+  // 1. Load the Metal shader library
+  let library = try loadMetalLibrary()
+
+  // 2. Get the compute function by name
+  guard let function = library.makeFunction(name: functionName) else {
+    throw PixelFluxError.functionNotFound
+  }
+
+  // 3. Create a compute pipeline state (compiled GPU code)
+  self.pipelineState = try device.makeComputePipelineState(function: function)
+}</code></pre>
+      </div>
+
+      <h4>4. Filter Classes</h4>
+      <p>High-level interfaces that implement the Filter protocol.</p>
+      <div class="api-section">
+        <h5>BrightnessFilter</h5>
+        <pre><code>public final class BrightnessFilter: Filter {
+  private let pipeline: ComputePipeline
+  public var brightness: Float
+
+  public init(brightness: Float) throws {
+    self.brightness = brightness
+    self.pipeline = try ComputePipeline(functionName: "brightnessKernel")
+  }
+
+  public func process(_ input: MTLTexture) throws -> MTLTexture {
+    let output = makeEmptyTexture(matching: input)
+
+    // 1. Create command buffer
+    guard let cmd = GPUContext.shared.queue.makeCommandBuffer() else {
+      throw PixelFluxError.commandBufferFailed
+    }
+
+    // 2. Allocate GPU buffer for brightness parameter
+    let params = BrightnessParams(brightness: brightness)
+    guard let paramBuffer = GPUContext.shared.device.makeBuffer(
+      bytes: &params,
+      length: MemoryLayout&lt;BrightnessParams&gt;.size
+    ) else {
+      throw PixelFluxError.bufferCreationFailed
+    }
+
+    // 3. Encode compute commands
+    pipeline.encode(commandBuffer: cmd, input: input, output: output, params: paramBuffer)
+
+    // 4. Submit and wait
+    cmd.commit()
+    cmd.waitUntilCompleted()
+
+    return output
+  }
+}</code></pre>
+      </div>
+
+      <h3>Metal Compute Shaders</h3>
+
+      <p>At the heart of PixelFlux are Metal compute shaders—GPU programs that run thousands of threads in parallel.</p>
+
+      <h4>Shader Language</h4>
+      <p>PixelFlux shaders are written in Metal Shading Language (MSL), which is similar to C++. They live in <code>.metal</code> files in the framework bundle.</p>
+
+      <h4>Brightness Shader Example</h4>
+      <div class="code-example">
+        <h5>brightnessKernel in Metal</h5>
+        <pre><code>#include &lt;metal_stdlib&gt;
+using namespace metal;
+
+struct BrightnessParams {
+  float brightness;
+};
+
+kernel void brightnessKernel(
+  texture2d&lt;float, access::read&gt;  input    [[texture(0)]],
+  texture2d&lt;float, access::write&gt; output   [[texture(1)]],
+  constant BrightnessParams &amp;params [[buffer(0)]],
+  uint2 gid [[thread_position_in_grid]]
+) {
+  // Each GPU thread processes one pixel
+  float4 pixel = input.read(gid);
+
+  // Apply brightness adjustment
+  float4 brightened = float4(
+    pixel.rgb + params.brightness,
+    pixel.a
+  );
+
+  // Clamp to valid color range
+  output.write(clamp(brightened, 0.0, 1.0), gid);
+}</code></pre>
+      </div>
+
+      <p><strong>How it works:</strong></p>
+      <ul>
+        <li>Each GPU thread processes one pixel independently</li>
+        <li><code>gid</code> (thread_position_in_grid) identifies which pixel this thread processes</li>
+        <li>Textures are read/written in parallel across all threads</li>
+        <li>GPU schedules thousands of threads across cores, achieving massive parallelism</li>
+      </ul>
+
+      <h4>Passthrough Shader</h4>
+      <p>The simplest possible filter—tests that the entire GPU pipeline works correctly:</p>
+      <div class="code-example">
+        <h5>passthroughKernel in Metal</h5>
+        <pre><code>kernel void passthroughKernel(
+  texture2d&lt;float, access::read&gt;  input  [[texture(0)]],
+  texture2d&lt;float, access::write&gt; output [[texture(1)]],
+  uint2 gid [[thread_position_in_grid]]
+) {
+  // Just copy the pixel unchanged
+  float4 pixel = input.read(gid);
+  output.write(pixel, gid);
+}</code></pre>
+      </div>
+
+      <h3>Memory Model</h3>
+
+      <h4>Texture Layout</h4>
+      <p>Metal textures are 2D arrays of pixels in GPU memory. Each pixel is typically 4 bytes (RGBA).</p>
+      <div class="code-example">
+        <h5>Memory Layout</h5>
+        <pre><code>// Physical GPU memory
+[R][G][B][A] [R][G][B][A] [R][G][B][A] ...  ← Row 0
+[R][G][B][A] [R][G][B][A] [R][G][B][A] ...  ← Row 1
+[R][G][B][A] [R][G][B][A] [R][G][B][A] ...  ← Row 2
+...
+
+// Thread processes (x, y) coordinate
+uint2 gid = uint2(3, 1)  // Pixel at column 3, row 1
+float4 pixel = input.read(gid)</code></pre>
+      </div>
+
+      <h4>Synchronization</h4>
+      <p>PixelFlux ensures proper GPU-CPU synchronization:</p>
+      <ul>
+        <li><strong>Command Submission:</strong> <code>cmd.commit()</code> queues work to the GPU</li>
+        <li><strong>Synchronization:</strong> <code>cmd.waitUntilCompleted()</code> blocks until all GPU work is done</li>
+        <li><strong>Result Copy:</strong> After completion, output texture is safely readable on CPU</li>
+      </ul>
+
+      <h3>Performance Characteristics</h3>
+
+      <h4>Throughput</h4>
+      <p>Modern iOS GPUs can process millions of pixels per second:</p>
+      <ul>
+        <li>A17 Pro GPU: ~1.5 TFLOPS (trillion floating-point operations per second)</li>
+        <li>Processing a 4000×3000 pixel image: ~50ms per filter on A17 Pro</li>
+        <li>Older devices may take 100-200ms for the same operation</li>
+      </ul>
+
+      <h4>Bottlenecks</h4>
+      <ul>
+        <li><strong>Texture Upload:</strong> Moving image data from CPU to GPU (happens once per filter)</li>
+        <li><strong>Compute Time:</strong> Actual GPU processing (depends on image size and filter complexity)</li>
+        <li><strong>Texture Download:</strong> Moving result back to CPU (unavoidable for UIImage output)</li>
+      </ul>
+
+      <h4>Optimization Strategies</h4>
+      <ol>
+        <li><strong>Batch Processing:</strong> Apply multiple filters to same image, avoiding repeated uploads</li>
+        <li><strong>Async Operations:</strong> Dispatch filters to background threads to keep UI responsive</li>
+        <li><strong>Downsampling:</strong> Process smaller images and upscale for preview, full-res for output</li>
+        <li><strong>Reuse Filters:</strong> Create filter once, apply multiple times</li>
+      </ol>
+
+      <h3>Error Handling Strategy</h3>
+
+      <p>PixelFlux defines errors at key failure points:</p>
+      <table>
+        <tr>
+          <th>Stage</th>
+          <th>Possible Error</th>
+          <th>Recovery</th>
+        </tr>
+        <tr>
+          <td>Input Validation</td>
+          <td><code>noCGImage</code></td>
+          <td>Validate image before filtering</td>
+        </tr>
+        <tr>
+          <td>Shader Load</td>
+          <td><code>metalLibraryNotFound</code></td>
+          <td>Check bundle linking and compilation</td>
+        </tr>
+        <tr>
+          <td>Function Lookup</td>
+          <td><code>functionNotFound</code></td>
+          <td>Verify shader function name</td>
+        </tr>
+        <tr>
+          <td>GPU Init</td>
+          <td><code>commandBufferFailed</code></td>
+          <td>GPU context unavailable (rare on devices)</td>
+        </tr>
+        <tr>
+          <td>Memory Allocation</td>
+          <td><code>bufferCreationFailed</code></td>
+          <td>Out of VRAM or invalid size</td>
+        </tr>
+      </table>
+
+      <h3>Design Patterns</h3>
+
+      <h4>1. Protocol-Oriented Design</h4>
+      <p>All filters implement the <code>Filter</code> protocol, enabling composition and abstraction:</p>
+      <div class="code-example">
+        <pre><code>public protocol Filter {
+  func process(_ input: MTLTexture) throws -> MTLTexture
+}
+
+// Any conforming type can be used generically
+func applyFilter&lt;F: Filter&gt;(_ filter: F, to image: UIImage) throws -> UIImage? {
+  let texture = try makeTexture(from: image)
+  let output = try filter.process(texture)
+  return textureToUIImage(output)
+}</code></pre>
+      </div>
+
+      <h4>2. Singleton GPU Context</h4>
+      <p>Single GPU context shared across all filters ensures consistent device state and command ordering:</p>
+      <div class="code-example">
+        <pre><code>static let shared = try GPUContext()
+
+// All filters use the same GPU context
+guard let cmd = GPUContext.shared.queue.makeCommandBuffer() else {
+  throw PixelFluxError.commandBufferFailed
+}</code></pre>
+      </div>
+
+      <h4>3. Separation of Concerns</h4>
+      <ul>
+        <li><strong>Filter Classes:</strong> Define what to do (brightness, passthrough, etc.)</li>
+        <li><strong>ComputePipeline:</strong> Handles how to run GPU code</li>
+        <li><strong>TextureUtilities:</strong> Handle image ↔ texture conversions</li>
+        <li><strong>GPUContext:</strong> Manages GPU resources</li>
+      </ul>
+
+      <h3>Extending PixelFlux</h3>
+
+      <h4>Creating a Custom Filter</h4>
+      <p>To add a new filter (e.g., saturation adjustment):</p>
+      <div class="code-example">
+        <h5>Step 1: Create the Swift class</h5>
+        <pre><code>import Metal
+
+public final class SaturationFilter: Filter {
+  private let pipeline: ComputePipeline
+  public var saturation: Float
+
+  public init(saturation: Float) throws {
+    self.saturation = saturation
+    self.pipeline = try ComputePipeline(functionName: "saturationKernel")
+  }
+
+  public func process(_ input: MTLTexture) throws -> MTLTexture {
+    // Similar structure to BrightnessFilter
+    let output = makeEmptyTexture(matching: input)
+    // ... encode GPU commands ...
+    return output
+  }
+}</code></pre>
+      </div>
+
+      <div class="code-example">
+        <h5>Step 2: Add the Metal shader</h5>
+        <pre><code>kernel void saturationKernel(
+  texture2d&lt;float, access::read&gt;  input  [[texture(0)]],
+  texture2d&lt;float, access::write&gt; output [[texture(1)]],
+  constant SaturationParams &amp;params [[buffer(0)]],
+  uint2 gid [[thread_position_in_grid]]
+) {
+  float4 pixel = input.read(gid);
+
+  // Convert RGB to HSL
+  // Adjust saturation
+  // Convert back to RGB
+
+  output.write(result, gid);
+}</code></pre>
+      </div>
+
+      <h3>Testing Strategy</h3>
+
+      <p>PixelFlux includes comprehensive tests for:</p>
+      <ul>
+        <li>Filter initialization with various parameters</li>
+        <li>Image dimension preservation</li>
+        <li>Error handling (invalid inputs, missing resources)</li>
+        <li>GPU availability across devices/simulators</li>
+      </ul>
+
+      <p>Tests use the <code>UIGraphicsImageRenderer</code> with explicit scale settings to create consistent test images across different display densities.</p>
+
+      <h3>Deployment Considerations</h3>
+
+      <h4>Device Compatibility</h4>
+      <ul>
+        <li><strong>Minimum:</strong> iOS 16.0 (when Metal compute became widely supported)</li>
+        <li><strong>Simulator:</strong> Metal software rendering works on M1/M2/M3 Macs with appropriate Metal Toolchain</li>
+        <li><strong>Older Devices:</strong> A9 and later all support Metal</li>
+      </ul>
+
+      <h4>Distribution</h4>
+      <p>PixelFlux is distributed as:</p>
+      <ul>
+        <li><strong>Swift Package (SPM):</strong> Source code + Metal shaders in bundle</li>
+        <li><strong>XCFramework:</strong> Pre-compiled binary for both device and simulator</li>
+      </ul>
+
+      <h3>Debugging Tips</h3>
+
+      <h4>Enable Metal Debugging</h4>
+      <p>In Xcode, enable Metal validation to catch GPU errors:</p>
+      <ul>
+        <li>Scheme → Run → Diagnostics → Metal API Validation</li>
+        <li>This slows execution but provides detailed error messages</li>
+      </ul>
+
+      <h4>Print GPU Information</h4>
+      <div class="code-example">
+        <pre><code>let device = MTLCreateSystemDefaultDevice()
+print("GPU: \(device?.name ?? "Unknown")")
+print("Max threads: \(device?.maxThreadsPerThreadgroup ?? 0)")</code></pre>
+      </div>
+
+      <h4>Verify Shader Compilation</h4>
+      <p>If shaders fail to compile, check:</p>
+      <ul>
+        <li>Metal Toolchain is installed (Xcode 26.2 requires explicit download)</li>
+        <li>Shader file is in correct target's Build Phases → Copy Bundle Resources</li>
+        <li>Function names match between Swift and Metal files</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 PixelFlux. Built with Swift, Metal, and ❤️</p>
+    <p><a href="https://github.com/wailbentafat/PixelFlux" target="_blank">View on GitHub</a></p>
+  </footer>
+</body>
+</html>
