@@ -1,0 +1,85 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build and Test PixelFlux
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Select Xcode version
+        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Download Metal Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || true
+
+      - name: Build PixelFlux Framework
+        run: |
+          xcodebuild build \
+            -workspace PixelFlux.xcworkspace \
+            -scheme PixelFlux \
+            -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            -quiet
+
+      - name: Run Unit Tests
+        run: |
+          xcodebuild test \
+            -workspace PixelFlux.xcworkspace \
+            -scheme PixelFlux \
+            -destination "platform=iOS Simulator,name=iPhone 17 Pro" \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            -enableCodeCoverage YES
+
+      - name: Build iOS Device Framework
+        run: |
+          xcodebuild archive \
+            -workspace PixelFlux.xcworkspace \
+            -scheme PixelFlux \
+            -destination "generic/platform=iOS" \
+            -archivePath build/PixelFlux-iOS.xcarchive \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+            -quiet
+
+      - name: Build iOS Simulator Framework
+        run: |
+          xcodebuild archive \
+            -workspace PixelFlux.xcworkspace \
+            -scheme PixelFlux \
+            -destination "generic/platform=iOS Simulator" \
+            -archivePath build/PixelFlux-Simulator.xcarchive \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            SKIP_INSTALL=NO \
+            BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+            -quiet
+
+      - name: Create XCFramework
+        run: |
+          xcodebuild -create-xcframework \
+            -framework build/PixelFlux-iOS.xcarchive/Products/Library/Frameworks/PixelFlux.framework \
+            -framework build/PixelFlux-Simulator.xcarchive/Products/Library/Frameworks/PixelFlux.framework \
+            -output build/PixelFlux.xcframework
+
+      - name: Upload XCFramework Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PixelFlux.xcframework
+          path: build/PixelFlux.xcframework
+
+      - name: Check Build Success
+        if: success()
+        run: echo "✅ All checks passed! Framework built and tested successfully."
