@@ -3,29 +3,29 @@ import Metal
 import MetalKit
 import CoreImage
 
-
 final class GPUContext {
-static let shared: GPUContext = {
-return try! GPUContext()
-}()
+    static let shared: GPUContext = {
+        guard let ctx = try? GPUContext() else {
+            fatalError("Metal is not supported on this device")
+        }
+        return ctx
+    }()
 
+    let device: MTLDevice
+    let queue: MTLCommandQueue
+    let ciContext: CIContext
+    let textureLoader: MTKTextureLoader
 
-let device: MTLDevice
-let queue: MTLCommandQueue
-let ciContext: CIContext
-let textureLoader: MTKTextureLoader
-
-
-private init() throws {
-guard let device = MTLCreateSystemDefaultDevice() else {
-fatalError("Metal not supported on this device")
-}
-self.device = device
-guard let q = device.makeCommandQueue() else {
-fatalError("Failed to create command queue")
-}
-self.queue = q
-self.ciContext = CIContext(mtlDevice: device)
-self.textureLoader = MTKTextureLoader(device: device)
-}
+    private init() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw PixelFluxError.metalLibraryNotFound
+        }
+        self.device = device
+        guard let q = device.makeCommandQueue() else {
+            throw PixelFluxError.commandBufferFailed
+        }
+        self.queue = q
+        self.ciContext = CIContext(mtlDevice: device)
+        self.textureLoader = MTKTextureLoader(device: device)
+    }
 }
