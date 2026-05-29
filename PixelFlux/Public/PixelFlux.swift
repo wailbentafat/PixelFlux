@@ -2,24 +2,16 @@ import Foundation
 import Metal
 import UIKit
 
-
+/// High-level convenience API. Use filter classes directly for more control.
 public final class PixelFlux {
-public static let shared = PixelFlux()
-private init() {}
+    public static let shared = PixelFlux()
+    private init() {}
 
+    public func applyPassthrough(to inputImage: UIImage) throws -> UIImage? {
+        return try PassthroughFilter().apply(to: inputImage)
+    }
 
-public func applyPassthrough(to image: UIImage) throws -> UIImage? {
-let input = try makeTexture(from: image)
-let filter = try PassthroughFilter()
-let out = try filter.process(input)
-return image(from: out)
-}
-
-
-public func applyBrightness(to image: UIImage, brightness: Float) throws -> UIImage? {
-let input = try makeTexture(from: image)
-let filter = try BrightnessFilter()
-let out = try filter.process(input, brightness: brightness)
-return image(from: out)
-}
+    public func applyBrightness(to inputImage: UIImage, brightness: Float) throws -> UIImage? {
+        return try BrightnessFilter(brightness: brightness).apply(to: inputImage)
+    }
 }
