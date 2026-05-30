@@ -3,6 +3,8 @@
 
 PixelFlux is a Swift framework for GPU-based image filters using Metal. It allows applying real-time image effects like brightness adjustments and pass-through filtering. The project includes a demo iOS app to test the filters visually.
 
+**[📖 Documentation](https://wailbentafat.github.io/PixelFlux/)** — API reference, architecture guide, and getting started tutorial.
+
 This is my first project working with Metal shaders and GPU programming. I built it to learn how to integrate Metal compute shaders into a Swift framework, structure reusable filter code, and connect it to an iOS app. While simple, it demonstrates the core concepts of GPU-based image processing.
 
 ## Project Structure
