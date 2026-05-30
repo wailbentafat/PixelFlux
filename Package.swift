@@ -7,8 +7,11 @@ let package = Package(
         .iOS(.v16)
     ],
     products: [
+        // Dynamic type ensures xcodebuild archive installs a .framework bundle
+        // into Products/Library/Frameworks/ so XCFramework creation succeeds.
         .library(
             name: "PixelFlux",
+            type: .dynamic,
             targets: ["PixelFlux"]
         )
     ],
