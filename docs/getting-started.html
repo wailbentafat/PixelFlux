@@ -107,7 +107,7 @@ class ImageViewController: UIViewController {
 
       <h3>Using the Convenience API</h3>
 
-      <p>For simple operations, use the <code>PixelFlux.shared</code> singleton API:</p>
+      <p>For simple operations, use the <code>PixelFluxEngine.shared</code> singleton API:</p>
       <div class="code-example">
         <h5>Convenience API Usage</h5>
         <pre><code>import PixelFlux
@@ -116,11 +116,11 @@ let image = UIImage(named: "example")!
 
 // Apply brightness using shared API
 do {
-  let brightened = try PixelFlux.shared.applyBrightness(to: image, brightness: 0.5)
+  let brightened = try PixelFluxEngine.shared.applyBrightness(to: image, brightness: 0.5)
   imageView.image = brightened
 
   // Or apply passthrough (identity) filter
-  let passthrough = try PixelFlux.shared.applyPassthrough(to: image)
+  let passthrough = try PixelFluxEngine.shared.applyPassthrough(to: image)
   anotherImageView.image = passthrough
 } catch {
   print("Error:", error.localizedDescription)

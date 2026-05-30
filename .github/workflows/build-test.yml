@@ -52,7 +52,6 @@ jobs:
             -derivedDataPath build/DerivedData \
             SKIP_INSTALL=NO \
             BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
-            'OTHER_SWIFT_FLAGS=$(OTHER_SWIFT_FLAGS) -Xfrontend -disable-interface-generation-verification' \
             -quiet
 
       - name: Build iOS Simulator Framework
@@ -66,7 +65,6 @@ jobs:
             -derivedDataPath build/DerivedData \
             SKIP_INSTALL=NO \
             BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
-            'OTHER_SWIFT_FLAGS=$(OTHER_SWIFT_FLAGS) -Xfrontend -disable-interface-generation-verification' \
             -quiet
 
       - name: Create XCFramework

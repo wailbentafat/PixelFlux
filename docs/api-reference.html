@@ -139,10 +139,10 @@ imageView.image = result</code></pre>
       <h3>Public API</h3>
 
       <div class="api-section">
-        <h4>PixelFlux</h4>
-        <p>Main singleton providing convenient access to PixelFlux filters.</p>
-        <pre><code>public final class PixelFlux {
-  public static let shared: PixelFlux
+        <h4>PixelFluxEngine</h4>
+        <p>Main singleton providing convenient access to PixelFlux filters. Named <code>PixelFluxEngine</code> to avoid shadowing the <code>PixelFlux</code> module name, which would break Swift binary framework distribution.</p>
+        <pre><code>public final class PixelFluxEngine {
+  public static let shared: PixelFluxEngine
   public func applyBrightness(to inputImage: UIImage, brightness: Float) throws -> UIImage?
   public func applyPassthrough(to inputImage: UIImage) throws -> UIImage?
 }</code></pre>
@@ -150,7 +150,7 @@ imageView.image = result</code></pre>
         <h5>Properties</h5>
         <div class="api-section">
           <h6>shared</h6>
-          <p>A singleton instance of PixelFlux. Use this for convenient filter application.</p>
+          <p>A singleton instance of PixelFluxEngine. Use this for convenient filter application.</p>
         </div>
 
         <h5>Methods</h5>
@@ -189,7 +189,7 @@ imageView.image = result</code></pre>
 
 // Using shared API
 do {
-  let brightened = try PixelFlux.shared.applyBrightness(to: image, brightness: 0.2)
+  let brightened = try PixelFluxEngine.shared.applyBrightness(to: image, brightness: 0.2)
   imageView.image = brightened
 } catch {
   print("Error:", error.localizedDescription)

@@ -3,8 +3,11 @@ import Metal
 import UIKit
 
 /// High-level convenience API. Use filter classes directly for more control.
-public final class PixelFlux {
-    public static let shared = PixelFlux()
+///
+/// Named `PixelFluxEngine` to avoid shadowing the `PixelFlux` module name,
+/// which would break Swift binary framework distribution (swiftinterface verification).
+public final class PixelFluxEngine {
+    public static let shared = PixelFluxEngine()
     private init() {}
 
     public func applyPassthrough(to inputImage: UIImage) throws -> UIImage? {

@@ -77,18 +77,18 @@ final class PixelFluxTests: XCTestCase {
 
     func testSharedAPIApplyBrightness() throws {
         let input = makeImage(color: .red, size: CGSize(width: 32, height: 32))
-        let result = try PixelFlux.shared.applyBrightness(to: input, brightness: 0.1)
+        let result = try PixelFluxEngine.shared.applyBrightness(to: input, brightness: 0.1)
         XCTAssertNotNil(result)
     }
 
     func testSharedAPIApplyPassthrough() throws {
         let input = makeImage(color: .cyan, size: CGSize(width: 32, height: 32))
-        let result = try PixelFlux.shared.applyPassthrough(to: input)
+        let result = try PixelFluxEngine.shared.applyPassthrough(to: input)
         XCTAssertNotNil(result)
     }
 
     func testSharedAPIIsSingleton() {
-        XCTAssertTrue(PixelFlux.shared === PixelFlux.shared)
+        XCTAssertTrue(PixelFluxEngine.shared === PixelFluxEngine.shared)
     }
 
     // MARK: - Error handling
